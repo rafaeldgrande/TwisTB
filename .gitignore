@@ -1,0 +1,30 @@
+# MATLAB
+*.asv
+*.m~
+*.fig
+*.mat
+*.save/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# TwisTB outputs
+*_BS.dat
+*_DOS.dat
+*_TB.dat
+*_v2.dat
+matlab_run.log
+*.png
+*.xyz
+*.xsf
+
+# LAMMPS
+*.lammps
+log.lammps
+dump.*
+
+# OS
+.DS_Store

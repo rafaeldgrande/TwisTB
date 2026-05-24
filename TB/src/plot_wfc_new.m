@@ -40,16 +40,27 @@ for ir = 1 : natoms
 end
 clear orb1 orb2 iorb
 nsublayers = 3*nlayer;
-llim = 0;
-ulim = 2.5;
+% Robust sublayer detection: find gaps > 0.5 Å in sorted Z to split sublayers.
+% This handles LAMMPS-relaxed structures where z-coordinates are not on a
+% regular grid and the first atom may have z < 0.
+Z_sorted = sort(Z);
+gaps = diff(Z_sorted);
+gap_locs = find(gaps > 0.5);
+if length(gap_locs) ~= nsublayers - 1
+    warning('plot_wfc_new: expected %d sublayer gaps, found %d. Adjusting gap threshold.', ...
+            nsublayers-1, length(gap_locs));
+    % Fallback: pick the nsublayers-1 largest gaps
+    [~, sorted_gap_idx] = sort(gaps, 'descend');
+    gap_locs = sort(sorted_gap_idx(1:nsublayers-1));
+end
+z_bounds = [-Inf; (Z_sorted(gap_locs) + Z_sorted(gap_locs+1)) / 2; Inf];
+ilayer = cell(nsublayers, 1);
 for isl = 1 : nsublayers
-   ilayer(isl,:) = find(Z > llim & Z < ulim);
-   llim = llim + 2;
-   ulim = ulim + 2;
+    ilayer{isl} = find(Z > z_bounds(isl) & Z <= z_bounds(isl+1));
 end
 pos = cell(nsublayers,1);
 for il = 1 : nsublayers
-   pos{il} = [X(ilayer(il,:)),Y(ilayer(il,:)),Z(ilayer(il,:))];
+   pos{il} = [X(ilayer{il}),Y(ilayer{il}),Z(ilayer{il})];
 end
 mean_z = mean(Z);
 figure(1)
@@ -58,16 +69,17 @@ supercell = cell(nsublayers,1); %zeros(6,9*size(psink,1),3);
 spsink = cell(nsublayers,1); %zeros(6,9*size(psink,1),1);
 for il = 1 : nsublayers
    jp = 0;
-   tmp = zeros(size(ilayer(il,:),2),3);
-   tmp2 = zeros(size(ilayer(il,:),2),1);
-   tmp3 = zeros(size(ilayer(il,:),2),3);
+   natoms_il = length(ilayer{il});
+   tmp = zeros(natoms_il,3);
+   tmp2 = zeros(natoms_il,1);
+   tmp3 = zeros(natoms_il,3);
    for n = - 2 : 2
       for m = -2 : 2
-          for ip = 1 : size(ilayer(il,:),2)
+          for ip = 1 : natoms_il
              jp = jp + 1;
              tmp3 = pos{il};
              tmp(jp,:) = tmp3(ip,:) + n*mcell(1,:) + m*mcell(2,:);
-             tmp2(jp) = psink(ilayer(il,ip))/(tmp(jp,3)-mean_z)^2;
+             tmp2(jp) = psink(ilayer{il}(ip))/(tmp(jp,3)-mean_z)^2;
           end
       end
 end
