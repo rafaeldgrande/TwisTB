@@ -149,6 +149,7 @@ fprintf('done [%.1fs]\n\n', toc(t_step))
 tot_natoms = sum(natoms);
 bondlength = bondlength./sqrt(3);
 rel_pos = [structure.x,structure.y,structure.z];
+t_step = tic; fprintf('--> Computing deformation potential ... ')
 % Read in structure, number of atoms and lattice parameters from pristine geomfname
 geomfname_pristine = join([extractBefore(geomfname,'.dat'),'_pristine.dat']);
 
@@ -190,6 +191,7 @@ end
 def_pot = zeros(tot_natoms,1);
 def_pot = deformation_potential_dorbs(def_pot,structure,tot_natoms,mcell,bondlength.*sqrt(3),strain);
 def_pot = deformation_potential_porbs(def_pot,structure,tot_natoms,mcell,bondlength.*sqrt(3),strain);
+fprintf('done [%.1fs]\n\n', toc(t_step))
 
 % multilayer or monolayer
 multilayer = false;
@@ -427,6 +429,7 @@ mb1=2*pi*cross(ma2,ma3)/mv;
 mb2=2*pi*cross(ma3,ma1)/mv;
 mb3=2*pi*cross(ma1,ma2)/mv;
 
+t_step = tic; fprintf('--> Generating k-points ... ')
 if(read_kpts)
 	read_kpts;
 else
@@ -434,6 +437,7 @@ else
    [all_kpts,scale_axis,knum_tot,recL] = generate_kpoints(task,multilayer,twisted,miniBZ, ...
             mb1,mb2,mb3,b1,b2,b3,knum,bse_shifted);
 end
+fprintf('done (%i k-points) [%.1fs]\n\n', knum_tot, toc(t_step))
 end
 
 % Check number of workers is not greater than number of k-points
@@ -537,7 +541,7 @@ else
    [orbitals,motif,orb_pattern] = initialise_orbitals2(orbitals,structure,...
 	mcell,tot_natoms,natoms,multilayer,nlayer,...
         nspin,def_pot);
-   fprintf('done [%.1fs]\n\n', toc(t_step))
+   fprintf('done (%i orbitals) [%.1fs]\n\n', tot_norbs, toc(t_step))
 
    if read_neighbors
       t_step = tic; fprintf('--> Loading neighbors from %s ... ', fullfile(dirname,'neighbors.mat'))

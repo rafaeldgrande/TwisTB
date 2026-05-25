@@ -52,7 +52,9 @@ if(~read_ham)
 
    % Start parallel section
    if(parallel)
+      fprintf('--> Opening parallel pool (%i workers) ... ', num_workers)
       parpool(pc,num_workers);
+      fprintf('done\n\n')
    else
       evalc('parpool(pc,num_workers)');
    end

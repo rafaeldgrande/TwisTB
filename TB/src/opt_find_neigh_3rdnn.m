@@ -71,6 +71,7 @@ for spin = -nspin + 1 : 2 : nspin - 1
         two_tol   = 2.0*tol_l;
 
         for isym = [-1,1]
+            t_isym = tic; fprintf('    layer %i/%i, isym %+i ... ', layer, nlayer, isym)
             orb1   = findobj(orbitals,'Layer',layer,'Spin',spin,'M1sym',isym);
             norbs  = size(orb1,1);
             coor   = [reshape([orb1(:).Centre],[3,norbs])'];
@@ -172,6 +173,7 @@ for spin = -nspin + 1 : 2 : nspin - 1
                     orbitals(iorb).Intra_nn3_hoppings = nn3_hop{ii};
                 end
             end
+            fprintf('done [%.1fs]\n', toc(t_isym))
 
         end  % for isym
     end  % for layer
@@ -183,6 +185,7 @@ for spin = -nspin + 1 : 2 : nspin - 1
         for layer = 1 : nlayer - 1
 
             % ── X-X (p-p) interlayer coupling ────────────────────────────
+            t_inter = tic; fprintf('    interlayer X-X (layer %i-%i) ... ', layer, layer+1)
             orb1   = findobj(orbitals,'Layer',layer,  'Spin',spin,'l',1);
             orb2   = findobj(orbitals,'Layer',layer+1,'Spin',spin,'l',1);
             norbs1 = size(orb1,1);
@@ -225,10 +228,12 @@ for spin = -nspin + 1 : 2 : nspin - 1
                 orbitals(iorb).Inter_nn2_list   = inter_nn2_list{ii};
                 orbitals(iorb).Inter_nn2_centre = inter_nn2_cen{ii};
             end
+            fprintf('done [%.1fs]\n', toc(t_inter))
 
             clear orb1 orb2
 
             % ── X-M (d-p) interlayer coupling ─────────────────────────────
+            t_inter = tic; fprintf('    interlayer X-M (layer %i-%i) ... ', layer, layer+1)
             orb1  = findobj(orbitals,'Layer',layer,  'Spin',spin, ...
                             {'Rel_index',9,'-or','Rel_index',6, ...
                              '-or','Rel_index',7,'-or','Rel_index',8});
@@ -285,6 +290,7 @@ for spin = -nspin + 1 : 2 : nspin - 1
                 orbitals(iorb).Inter_mx_n_list   = inter_mx_list{ii};
                 orbitals(iorb).Inter_mx_n_centre = inter_mx_cen{ii};
             end
+            fprintf('done [%.1fs]\n', toc(t_inter))
 
         end  % for layer (interlayer)
     end
