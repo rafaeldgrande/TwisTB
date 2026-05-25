@@ -68,6 +68,44 @@ def _layer_theta_from_positions(W_atoms, cutoff=4.5):
     return float(np.median(angles))
 
 
+def balance_layers(atoms):
+    """Ensure equal layer sizes (multiple of 3) by reassigning boundary atoms.
+
+    LAMMPS mol_id can be unequal across layers due to setup errors. TwisTB
+    requires natoms(layer) to be a multiple of 3 (one TMD primitive cell = 3 atoms).
+    Boundary atoms (highest z in the larger layer) are moved to the smaller layer.
+    """
+    mol_ids = atoms.get_array('mol-id').copy()
+    layers  = sorted(set(mol_ids))
+    counts  = {lyr: int((mol_ids == lyr).sum()) for lyr in layers}
+    total   = sum(counts.values())
+    target  = total // len(layers)
+    if target % 3 != 0:
+        target -= target % 3
+
+    pos = atoms.get_positions()
+    changed = False
+    for i in range(len(layers) - 1):
+        lyr_big, lyr_small = layers[i], layers[i + 1]
+        if counts[lyr_big] < counts[lyr_small]:
+            lyr_big, lyr_small = lyr_small, lyr_big
+
+        while counts[lyr_big] > target:
+            idxs = np.where(mol_ids == lyr_big)[0]
+            border_i = idxs[np.argmax(pos[idxs, 2])]  # highest z → closest to gap
+            mol_ids[border_i] = lyr_small
+            counts[lyr_big]   -= 1
+            counts[lyr_small] += 1
+            changed = True
+
+    if changed:
+        atoms.set_array('mol-id', mol_ids)
+        final = {lyr: int((mol_ids == lyr).sum()) for lyr in layers}
+        print(f"  Note: layer atom counts rebalanced to {final} (mol_id mismatch corrected)",
+              flush=True)
+    return atoms
+
+
 def write_tb_geometry(atoms, out_fname, nm=None):
     """
     nm : tuple (N, M) or None.
@@ -157,6 +195,8 @@ def main():
         print(f"==> Using analytical thetas for N={nm[0]}, M={nm[1]}", flush=True)
     else:
         print(f"==> Estimating thetas from W-W bond directions (no --n/--m given)", flush=True)
+
+    atoms = balance_layers(atoms)
 
     print(f"==> Writing: {out_fname}", flush=True)
     write_tb_geometry(atoms, out_fname, nm=nm)

@@ -47,7 +47,8 @@ if(~read_ham)
    % Generate mask for 2H stackings
    Mxz = generate_mask(orbitals,tot_norbs,nlayer,flipped);
    if(reduced_workspace)
-      Mxz = sparse(Mxz);
+      Mxz   = sparse(Mxz);
+      diagH = sparse(diagH);   % broadcast sparse diagonal (~N KB) not dense (~N^2 KB)
    end
 
    % Start parallel section
