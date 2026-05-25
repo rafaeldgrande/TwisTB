@@ -14,6 +14,7 @@ Usage: python3 convert_lammps_to_tb.py input.lammps [output.dat]
 import numpy as np
 import sys
 import os
+import time
 
 # ── species identification from atomic mass ──────────────────────────────────
 MASS_TO_SPECIES = {
@@ -122,8 +123,10 @@ def compute_geometry(atoms, Lx, Ly, xy):
     thetas = []
     for lyr in layers:
         metals = [a for a in atoms if a['layer'] == lyr and is_metal(a['species'])]
-        theta = _layer_theta(metals, Lx, Ly, xy, a_mono)
+        print(f"  Computing theta for layer {lyr} ({len(metals)} metal atoms)...", flush=True)
+        theta = _layer_theta(metals, Lx, Ly, xy, a_mono, layer_label=lyr)
         thetas.append(theta)
+        print(f"  Layer {lyr} theta = {theta:.4f}°", flush=True)
 
     return a1_M, a2_M, a1_mono, a2_mono, a_mono, thetas, layers, nat_per_layer
 
@@ -144,10 +147,13 @@ def _nn_vector(x0, y0, metals, Lx, Ly, xy, a_mono):
     return best_v
 
 
-def _layer_theta(metals, Lx, Ly, xy, a_mono):
+def _layer_theta(metals, Lx, Ly, xy, a_mono, layer_label=None):
     """Robust theta estimate: median of all NN metal-metal bond angles folded to [0°, 60°)."""
     angles = []
-    for ref in metals:
+    n = len(metals)
+    report_every = max(1, n // 10)
+    t0 = time.time()
+    for i, ref in enumerate(metals):
         v = _nn_vector(ref['xu'], ref['yu'],
                        [m for m in metals if m['id'] != ref['id']],
                        Lx, Ly, xy, a_mono)
@@ -155,6 +161,11 @@ def _layer_theta(metals, Lx, Ly, xy, a_mono):
             # fold to [0°, 60°) — fundamental domain of the hexagonal lattice
             ang = np.degrees(np.arctan2(v[1], v[0])) % 60.0
             angles.append(ang)
+        if (i + 1) % report_every == 0 or (i + 1) == n:
+            elapsed = time.time() - t0
+            tag = f" (layer {layer_label})" if layer_label is not None else ""
+            print(f"    theta{tag}: {i+1}/{n} metal atoms processed  [{elapsed:.1f}s]",
+                  flush=True)
     if not angles:
         raise RuntimeError("Could not find NN metal-metal vector")
     return float(np.median(angles))
@@ -210,12 +221,26 @@ def main():
         base = os.path.splitext(in_fname)[0]
         out_fname = base + '_TB.dat'
 
+    t_start = time.time()
+
+    print(f"==> Reading LAMMPS file: {in_fname}", flush=True)
     atoms, Lx, Ly, xy, masses, type_to_species = parse_lammps(in_fname)
+    species_counts = {}
+    for a in atoms:
+        species_counts[a['species']] = species_counts.get(a['species'], 0) + 1
+    print(f"    {len(atoms)} atoms total: " +
+          ", ".join(f"{n} {s}" for s, n in sorted(species_counts.items())),
+          flush=True)
+
+    print(f"==> Computing geometry (moiré cell, lattice parameter, layer thetas)...", flush=True)
     a1_M, a2_M, a1_mono, a2_mono, a_mono, thetas, layers, nat_per_layer = \
         compute_geometry(atoms, Lx, Ly, xy)
 
+    print(f"==> Writing TwisTB geometry: {out_fname}", flush=True)
     write_tb_geometry(atoms, a1_M, a2_M, a1_mono, a2_mono, a_mono,
                       thetas, layers, nat_per_layer, out_fname)
+
+    print(f"==> Done in {time.time() - t_start:.1f}s", flush=True)
     return out_fname
 
 
