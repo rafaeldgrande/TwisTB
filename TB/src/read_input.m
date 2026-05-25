@@ -65,7 +65,7 @@ function [task, restart, read_ham, geomfname, GW, aXX2, ...
     num_workers, dE, gradient, lambda, bse_num_vbnd, bse_num_cbnd, bse_int, ...
     bse_broadening, bse_eig_plot, bse_irh, bse_serial, bse_shifted, ...
     flipped, write_ham, ham_fname, read_kpts, ef_strength, onsite_moire, ...
-    sixth_nn, g1, lwannier90, w90_rootname] = read_input(filename)
+    sixth_nn, g1, lwannier90, w90_rootname, save_neighbors, read_neighbors] = read_input(filename)
 
     keys = {'task';                  %1
             'geom_file';             %2
@@ -105,7 +105,9 @@ function [task, restart, read_ham, geomfname, GW, aXX2, ...
             'onsite_moire';          %36
 	    'sixth_nn';              %37
 	    'g1';                    %38
-	    'w90_rootname';};        %39
+	    'w90_rootname';          %39
+	    'save_neighbors';         %40
+	    'read_neighbors';};       %41
     numeric_keys = [1,3,4,5,6,7,9,16,19,22,23,24,26,29,31,32,35,36,38];
     fundamental_keys = [1,2,4,5,6,7,9,29];
     len_keys = size(keys,1);
@@ -150,7 +152,9 @@ function [task, restart, read_ham, geomfname, GW, aXX2, ...
                       0.0;                       %36
                       'false';                   %37
                       0.0;                       %38
-		      'w90';};                   %39
+		      'w90';                    %39
+		      'false';                   %40
+		      'false';};                 %41
 
     loc_found = 0;
     i = 0;
@@ -245,6 +249,8 @@ function [task, restart, read_ham, geomfname, GW, aXX2, ...
     sixth_nn          = strcmp(deblank(char(value{37})),'true');
     g1                = value{38};
     w90_rootname      = deblank(char(value{39}));
+    save_neighbors    = strcmp(deblank(char(value{40})),'true');
+    read_neighbors    = strcmp(deblank(char(value{41})),'true');
 
     % Check input
     if(~isnumeric(aXX2))
@@ -427,6 +433,14 @@ function [task, restart, read_ham, geomfname, GW, aXX2, ...
 
     if (~islogical(lwannier90))
        error('Error in read_input.m: lwannier90 must be a logical variable, either false or true. Aborting ...')
+    end
+
+    if (~islogical(save_neighbors))
+       error('Error in read_input.m: save_neighbors must be a logical variable, either false or true. Aborting ...')
+    end
+
+    if (~islogical(read_neighbors))
+       error('Error in read_input.m: read_neighbors must be a logical variable, either false or true. Aborting ...')
     end
     if(lwannier90)
 	    %Setting read_kpts to true

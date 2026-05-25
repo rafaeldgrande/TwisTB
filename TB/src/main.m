@@ -61,7 +61,7 @@ if(exist(inpfname,'file'))
     num_workers, dE, gradient, lambda, vn, cn, elho_int, dL, bse_eig_plot, ...
     bse_irh, bse_serial, bse_shifted, flipped, ...
     write_ham, ham_fname, read_kpts, ef_strength, onsite_moire, sixth_nn, g1, ...
-    lwannier90, w90_rootname]  = read_input(inpfname);
+    lwannier90, w90_rootname, save_neighbors, read_neighbors]  = read_input(inpfname);
    fprintf('done [%.1fs]\n\n', toc(t_step))
 else
    error('Input file not found! Aborting ...')
@@ -539,22 +539,33 @@ else
         nspin,def_pot);
    fprintf('done [%.1fs]\n\n', toc(t_step))
 
-   t_step = tic; fprintf('--> Finding neighbors ... ')
-   % Find neighbors
-   if(sixth_nn)
-      [orbitals] = opt_find_neigh_6thnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
-         nspin,type1,type2,type3,type4,type5,type7,type8,type10,type12,type14,...
-         type16,typem16,type18,typem18,type19,type20,typem21,a1,a2,Rtheta,multilayer,nlayer,interlayer_int,Interpd,flipped);
+   if read_neighbors
+      t_step = tic; fprintf('--> Loading neighbors from %s ... ', fullfile(dirname,'neighbors.mat'))
+      load(fullfile(dirname,'neighbors.mat'), 'orbitals');
       fprintf('done [%.1fs]\n\n', toc(t_step))
-      clear type1 type2 type3 type4 type5 type7 type8 type10 type12 type14 type16 typem16 type18 typem18 ...
-	      type19 type20 typem21;
    else
-      [orbitals] = opt_find_neigh_3rdnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
-         nspin,type1,type2,type3,type4,type5,type7,u1,u2,Rtheta,multilayer,nlayer,...
-      	 interlayer_int,Interpd,flipped);
-      fprintf('done [%.1fs]\n\n', toc(t_step))
-      clear type1 type2 type3 type4 type5 type7;
-   end   
+      t_step = tic; fprintf('--> Finding neighbors ... ')
+      % Find neighbors
+      if(sixth_nn)
+         [orbitals] = opt_find_neigh_6thnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
+            nspin,type1,type2,type3,type4,type5,type7,type8,type10,type12,type14,...
+            type16,typem16,type18,typem18,type19,type20,typem21,a1,a2,Rtheta,multilayer,nlayer,interlayer_int,Interpd,flipped);
+         fprintf('done [%.1fs]\n\n', toc(t_step))
+         clear type1 type2 type3 type4 type5 type7 type8 type10 type12 type14 type16 typem16 type18 typem18 ...
+	         type19 type20 typem21;
+      else
+         [orbitals] = opt_find_neigh_3rdnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
+            nspin,type1,type2,type3,type4,type5,type7,u1,u2,Rtheta,multilayer,nlayer,...
+            interlayer_int,Interpd,flipped);
+         fprintf('done [%.1fs]\n\n', toc(t_step))
+         clear type1 type2 type3 type4 type5 type7;
+      end
+      if save_neighbors
+         fprintf('--> Saving neighbors to %s ... ', fullfile(dirname,'neighbors.mat'))
+         save(fullfile(dirname,'neighbors'), 'orbitals');
+         fprintf('done\n\n')
+      end
+   end
 
    % Find transformation matrix from symmetrised basis to unsymmetrised basis
    if(lsoc || interlayer_int)
