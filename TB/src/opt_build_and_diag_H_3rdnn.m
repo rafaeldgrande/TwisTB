@@ -53,6 +53,8 @@ if(~read_ham)
    % Start parallel section
    if(parallel)
       fprintf('--> Opening parallel pool (%i workers) ... ', num_workers)
+      existing = gcp('nocreate');
+      if ~isempty(existing), delete(existing); end
       parpool(pc,num_workers);
       fprintf('done\n\n')
    else
@@ -188,6 +190,8 @@ else
 
 % Start parallel section
 if(parallel)
+   existing = gcp('nocreate');
+   if ~isempty(existing), delete(existing); end
    parpool(pc,num_workers);
 else
    evalc('parpool(pc,num_workers)');
