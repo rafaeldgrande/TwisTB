@@ -54,7 +54,7 @@ if(~exist('onlydir','var'))
 	onlydir = false;
 end
 if(exist(inpfname,'file'))
-   fprintf('--> Reading input from input.dat file ... ')
+   t_step = tic; fprintf('--> Reading input from input.dat file ... ')
    [task, restart, read_ham, geomfname, gw_par, aXX2, ...
     nlayer,tmdc, convention, knum, miniBZ, interlayer_int, Interpd, ...
     lsoc, reduced_workspace, num_cond, compute_eigvecs, save_workspace, ...
@@ -62,7 +62,7 @@ if(exist(inpfname,'file'))
     bse_irh, bse_serial, bse_shifted, flipped, ...
     write_ham, ham_fname, read_kpts, ef_strength, onsite_moire, sixth_nn, g1, ...
     lwannier90, w90_rootname]  = read_input(inpfname);
-   fprintf('done\n\n')
+   fprintf('done [%.1fs]\n\n', toc(t_step))
 else
    error('Input file not found! Aborting ...')
 end
@@ -142,10 +142,10 @@ else
    fprintf('*** Starting a restart calculation ***\n\n')
 end
 
-fprintf('--> Reading geometry from %s file ... ', geomfname)
+t_step = tic; fprintf('--> Reading geometry from %s file ... ', geomfname)
 % Read in structure, number of atoms and lattice parameters from geomfname
 [natoms,theta,strain,unit_cell,mcell,structure,bondlength] = read_structure(geomfname,nlayer);
-fprintf('done\n\n')
+fprintf('done [%.1fs]\n\n', toc(t_step))
 tot_natoms = sum(natoms);
 bondlength = bondlength./sqrt(3);
 rel_pos = [structure.x,structure.y,structure.z];
@@ -269,7 +269,7 @@ if(onlydir)
    exit
 end
 
-fprintf('--> Setting all irreducible parameters ... ')
+t_step = tic; fprintf('--> Setting all irreducible parameters ... ')
 
 if(multilayer)
    if(nlayer ~= max(structure.layer))
@@ -312,7 +312,7 @@ else
 end
 % Set interlayer parameters
 [pp_vint_z,pp_vint_parm,pd_vint_lay1_z,pd_vint_lay1_parm,pd_vint_lay2_z,pd_vint_lay2_parm]=inter_par(multilayer,nlayer,tmdc);
-fprintf('done\n\n')
+fprintf('done [%.1fs]\n\n', toc(t_step))
 
 % Number of orbitals, number of occupied states and number of eigenvalues
 for ilayer = 1 : nlayer
@@ -524,7 +524,7 @@ if(restart)
       end 
    end
 else
-   fprintf('--> Initialising orbitals ... ')
+   t_step = tic; fprintf('--> Initialising orbitals ... ')
    % Create an array of orbital classes and initialises it
    orbitals(tot_norbs) = orbital();
    for iorb = 1 : tot_norbs
@@ -537,31 +537,31 @@ else
    [orbitals,motif,orb_pattern] = initialise_orbitals2(orbitals,structure,...
 	mcell,tot_natoms,natoms,multilayer,nlayer,...
         nspin,def_pot);
-   fprintf('done\n\n')
+   fprintf('done [%.1fs]\n\n', toc(t_step))
 
-   fprintf('--> Finding neighbors ... ')
+   t_step = tic; fprintf('--> Finding neighbors ... ')
    % Find neighbors
    if(sixth_nn)
       [orbitals] = opt_find_neigh_6thnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
          nspin,type1,type2,type3,type4,type5,type7,type8,type10,type12,type14,...
          type16,typem16,type18,typem18,type19,type20,typem21,a1,a2,Rtheta,multilayer,nlayer,interlayer_int,Interpd,flipped);
-      fprintf('done\n\n')
+      fprintf('done [%.1fs]\n\n', toc(t_step))
       clear type1 type2 type3 type4 type5 type7 type8 type10 type12 type14 type16 typem16 type18 typem18 ...
 	      type19 type20 typem21;
    else
       [orbitals] = opt_find_neigh_3rdnn(orbitals,mcell,ncell1,ncell2,bondlength,aXX2,...
          nspin,type1,type2,type3,type4,type5,type7,u1,u2,Rtheta,multilayer,nlayer,...
       	 interlayer_int,Interpd,flipped);
-      fprintf('done\n\n')
+      fprintf('done [%.1fs]\n\n', toc(t_step))
       clear type1 type2 type3 type4 type5 type7;
    end   
 
    % Find transformation matrix from symmetrised basis to unsymmetrised basis
    if(lsoc || interlayer_int)
       clear T;
-      fprintf('--> Generating rotation matrix (unsymmetrised basis) ... ')
+      t_step = tic; fprintf('--> Generating rotation matrix (unsymmetrised basis) ... ')
       T = generate_T(orbitals,tot_norbs,nspin,nlayer);
-      fprintf('done\n\n')
+      fprintf('done [%.1fs]\n\n', toc(t_step))
       if(reduced_workspace)
          T = sparse(T);
       end
@@ -589,11 +589,11 @@ if(~read_ham)
    % not carry momentum, just needs to be computed once.
    if (lsoc)
        clear Hsoc;
-       fprintf('--> Computing SOC ... ')
-       for ilayer = 1 : nlayer 
+       t_step = tic; fprintf('--> Computing SOC ... ')
+       for ilayer = 1 : nlayer
            [Hsoc{ilayer},CGp,lang1] = soc(lsoM(ilayer),lsoX(ilayer));
        end
-       fprintf('done\n\n')
+       fprintf('done [%.1fs]\n\n', toc(t_step))
        if(reduced_workspace)
           for ilayer = 1 : nlayer
              Hsoc{ilayer} = sparse(Hsoc{ilayer});
@@ -604,6 +604,7 @@ if(~read_ham)
 end
 
 % Start parallel Hamiltonian diagonalization
+t_step = tic;
 if(sixth_nn)
    [Hmat,tb_bands,tb_vecs,gradH_x] = opt_build_and_diag_H_6thnn(task,Hmat,orbitals,norbs,tot_norbs,...
                  multilayer,nspin,nlayer,neigs,...
@@ -621,6 +622,7 @@ else
                  read_ham,save_workspace,reduced_workspace,num_workers,gradient,lambda,...
                  pc,dirname,parallel,write_ham,onsite_moire,ef_strength,g1);
 end
+fprintf('--> Hamiltonian build + diagonalisation done [%.1fs]\n\n', toc(t_step))
 
 %if(task==1 || task==3) 
 %   clear orbitals;
