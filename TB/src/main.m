@@ -650,9 +650,10 @@ noccs_k = zeros(knum_tot,1);
    if(reduced_workspace)
       for ik = 1 : knum_tot
          ind = find(tb_bands(:,ik) < 0);
-         [m,noccs_k(ik)] = max(tb_bands(ind,ik));
+         if ~isempty(ind)
+            [~, noccs_k(ik)] = max(tb_bands(ind,ik));
+         end
       end
- %  end
    clear ind
 else
    noccs_k(:) = noccs;
@@ -664,6 +665,26 @@ if(task==1)
    if(save_workspace)
       fprintf('--> Saving eigenvalues and k-path in %s ... ',outfname)
       save(fullfile(dirname,outfname),'scale_axis','tb_bands');
+      fprintf('done\n\n')
+   end
+   if(save_workspace && compute_eigvecs && ~isequal(tb_vecs, 0.0))
+      fprintf('--> Saving eigenvectors + orbital positions in %s/eigvecs.mat ... ', dirname)
+      orb_centres = zeros(tot_norbs, 3);
+      orb_layer   = zeros(tot_norbs, 1, 'int32');
+      orb_l       = zeros(tot_norbs, 1, 'int32');
+      for iorb = 1 : tot_norbs
+         orb_layer(iorb) = int32(orbitals(iorb).Layer);
+         orb_l(iorb)     = int32(orbitals(iorb).l);
+         if orbitals(iorb).l == 2
+            orb_centres(iorb, :) = orbitals(iorb).Centre;
+         else
+            orb_centres(iorb, :) = orbitals(iorb).Pcentre;
+         end
+      end
+      lam = lambda;
+      save(fullfile(dirname,'eigvecs'), 'tb_vecs', 'tb_bands', 'all_kpts', ...
+           'scale_axis', 'orb_centres', 'orb_layer', 'orb_l', 'lam');
+      clear orb_centres orb_layer orb_l iorb lam
       fprintf('done\n\n')
    end
    file_ID = fopen(join([outfname,'_BS.dat']),'w');
